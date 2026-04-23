@@ -1,10 +1,10 @@
-name: EC2 Scheduler
+name: EC2 Scheduler Test
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '30 2 * * 1-5'
-    - cron: '30 15 * * 1-5'
+    - cron: '45 9 * * *'   # 15:15 IST (STOP)
+    - cron: '0 10 * * *'   # 15:30 IST (START)
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -25,7 +25,20 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Start instances
+      - name: Decide action
         run: |
-          echo "Starting instance"
-          aws ec2 start-instances --instance-ids $INSTANCE_IDS
+          if [[ "${{ github.event.schedule }}" == "45 9 * * *" ]]; then
+            echo "ACTION=stop" >> $GITHUB_ENV
+          else
+            echo "ACTION=start" >> $GITHUB_ENV
+          fi
+
+      - name: Execute action
+        run: |
+          echo "Action: $ACTION"
+
+          if [[ "$ACTION" == "start" ]]; then
+            aws ec2 start-instances --instance-ids $INSTANCE_IDS
+          else
+            aws ec2 stop-instances --instance-ids $INSTANCE_IDS
+          fi
