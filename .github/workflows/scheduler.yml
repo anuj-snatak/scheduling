@@ -2,18 +2,9 @@ name: EC2 Scheduler Stable
 
 on:
   schedule:
-    - cron: '45 11 * * *'   # 5:15 PM IST → STOP
-    - cron: '50 11 * * *'   # 5:20 PM IST → START
+    - cron: '30 3 * * 1-5'    # 9:00 AM IST → START
+    - cron: '30 13 * * 1-5'   # 7:00 PM IST → STOP
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Action to perform'
-        required: true
-        default: 'start'
-        type: choice
-        options:
-          - start
-          - stop
 
 permissions:
   id-token: write
@@ -27,63 +18,54 @@ jobs:
   scheduler:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug Info
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Schedule: ${{ github.event.schedule }}"
-          echo "Current UTC time: $(date -u)"
-          echo "Current IST time: $(TZ='Asia/Kolkata' date)"
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Determine Action from Schedule
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "ACTION=${{ github.event.inputs.action }}" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "45 11 * * *" ]]; then
-            echo "ACTION=stop" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "50 11 * * *" ]]; then
-            echo "ACTION=start" >> $GITHUB_ENV
-          else
-            echo "ACTION=unknown" >> $GITHUB_ENV
-          fi
-
-      - name: Get Current Instance State
+      - name: Get instance state
         run: |
           STATE=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[0].Instances[0].State.Name" \
             --output text)
-          echo "Current state: $STATE"
           echo "STATE=$STATE" >> $GITHUB_ENV
+          echo "Current state: $STATE"
 
-      - name: Execute Action
+      - name: Decide action
         run: |
-          echo "Intended Action : $ACTION"
-          echo "Current State   : $STATE"
-          if [[ "$ACTION" == "start" && "$STATE" != "running" ]]; then
-            echo "Starting instance..."
-            aws ec2 start-instances --instance-ids $INSTANCE_IDS
-          elif [[ "$ACTION" == "stop" && "$STATE" != "stopped" ]]; then
-            echo "Stopping instance..."
-            aws ec2 stop-instances --instance-ids $INSTANCE_IDS
-          elif [[ "$ACTION" == "unknown" ]]; then
-            echo "ERROR: Schedule pehchana nahi gaya"
-            exit 1
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            if [[ "${{ github.event.schedule }}" == "30 3 * * 1-5" ]]; then
+              echo "ACTION=start" >> $GITHUB_ENV
+            elif [[ "${{ github.event.schedule }}" == "30 13 * * 1-5" ]]; then
+              echo "ACTION=stop" >> $GITHUB_ENV
+            fi
           else
-            echo "Instance already in desired state ($STATE). Koi action nahi."
+            if [[ "$STATE" == "running" ]]; then
+              echo "ACTION=stop" >> $GITHUB_ENV
+            else
+              echo "ACTION=start" >> $GITHUB_ENV
+            fi
           fi
 
-      - name: Wait and Verify Final State
+      - name: Start instance
+        if: env.ACTION == 'start' && env.STATE != 'running'
         run: |
-          echo "20 seconds wait kar rahe hain..."
+          echo "Starting instance..."
+          aws ec2 start-instances --instance-ids $INSTANCE_IDS
+
+      - name: Stop instance
+        if: env.ACTION == 'stop' && env.STATE != 'stopped'
+        run: |
+          echo "Stopping instance..."
+          aws ec2 stop-instances --instance-ids $INSTANCE_IDS
+
+      - name: Verify final state
+        run: |
           sleep 20
-          FINAL_STATE=$(aws ec2 describe-instances \
+          FINAL=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[0].Instances[0].State.Name" \
             --output text)
-          echo "Final state: $FINAL_STATE"
+          echo "Final state: $FINAL"
