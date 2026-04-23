@@ -2,8 +2,8 @@ name: EC2 Scheduler Stable
 
 on:
   schedule:
-    - cron: '15 11 * * *'
-    - cron: '30 11 * * *'
+    - cron: '15 11 * * *'   # 4:45 PM IST → START
+    - cron: '30 11 * * *'   # 5:00 PM IST → STOP
   workflow_dispatch:
     inputs:
       action:
@@ -61,7 +61,7 @@ jobs:
           echo "Current state: $STATE"
           echo "STATE=$STATE" >> $GITHUB_ENV
 
-      - name: Execute Action (with state check)
+      - name: Execute Action
         run: |
           echo "Intended Action : $ACTION"
           echo "Current State   : $STATE"
