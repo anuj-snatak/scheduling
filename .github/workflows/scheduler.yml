@@ -2,8 +2,8 @@ name: EC2 Scheduler Stable
 
 on:
   schedule:
-    - cron: '30 3 * * 1-5'    # 9:00 AM IST → START
-    - cron: '30 13 * * 1-5'   # 7:00 PM IST → STOP
+    - cron: '30 12 * * *'   # 6:00 PM IST → STOP
+    - cron: '0 13 * * *'    # 6:30 PM IST → START
   workflow_dispatch:
 
 permissions:
