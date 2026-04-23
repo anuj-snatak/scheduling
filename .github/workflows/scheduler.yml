@@ -3,7 +3,7 @@ name: EC2 Scheduler Stable
 on:
   schedule:
     - cron: '15 11 * * *'   # 4:45 PM IST → START (test)
-    - cron: '20 11 * * *'   # 4:40 PM IST → STOP (test)
+    - cron: '10 11 * * *'   # 4:40 PM IST → STOP (test)
   workflow_dispatch:
     inputs:
       action:
