@@ -82,3 +82,8 @@ jobs:
         run: |
           echo "20 seconds wait kar rahe hain..."
           sleep 20
+          FINAL_STATE=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_IDS \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text)
+          echo "Final state: $FINAL_STATE"
