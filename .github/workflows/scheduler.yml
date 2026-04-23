@@ -1,11 +1,19 @@
 name: EC2 Scheduler Stable
 
 on:
-  push:
-    branches: [ main ]   # cron activate hone me help karega
   schedule:
-    - cron: '*/5 * * * *'   # testing ke liye (har 5 min)
+    - cron: '15 11 * * *'   # 4:45 PM IST → START (test)
+    - cron: '20 11 * * *'   # 4:40 PM IST → STOP (test)
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'start'
+        type: choice
+        options:
+          - start
+          - stop
 
 permissions:
   id-token: write
@@ -18,13 +26,13 @@ env:
 jobs:
   scheduler:
     runs-on: ubuntu-latest
-
     steps:
       - name: Debug Info
         run: |
           echo "Event: ${{ github.event_name }}"
           echo "Schedule: ${{ github.event.schedule }}"
-          date
+          echo "Current UTC time: $(date -u)"
+          echo "Current IST time: $(TZ='Asia/Kolkata' date)"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -32,30 +40,57 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Get Instance State
+      - name: Determine Action from Schedule
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ACTION=${{ github.event.inputs.action }}" >> $GITHUB_ENV
+
+          elif [[ "${{ github.event.schedule }}" == "15 11 * * *" ]]; then
+            echo "ACTION=start" >> $GITHUB_ENV
+
+          elif [[ "${{ github.event.schedule }}" == "10 11 * * *" ]]; then
+            echo "ACTION=stop" >> $GITHUB_ENV
+
+          else
+            echo "ACTION=unknown" >> $GITHUB_ENV
+          fi
+
+      - name: Get Current Instance State
         run: |
           STATE=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_IDS \
             --query "Reservations[0].Instances[0].State.Name" \
             --output text)
-
           echo "Current state: $STATE"
           echo "STATE=$STATE" >> $GITHUB_ENV
 
-      - name: Decide Action (Toggle)
+      - name: Execute Action (with state check)
         run: |
-          if [[ "$STATE" == "running" ]]; then
-            echo "ACTION=stop" >> $GITHUB_ENV
-          else
-            echo "ACTION=start" >> $GITHUB_ENV
-          fi
+          echo "Intended Action : $ACTION"
+          echo "Current State   : $STATE"
 
-      - name: Execute Action
-        run: |
-          echo "Final Action: $ACTION"
-
-          if [[ "$ACTION" == "start" ]]; then
+          if [[ "$ACTION" == "start" && "$STATE" != "running" ]]; then
+            echo "Starting instance..."
             aws ec2 start-instances --instance-ids $INSTANCE_IDS
-          else
+
+          elif [[ "$ACTION" == "stop" && "$STATE" != "stopped" ]]; then
+            echo "Stopping instance..."
             aws ec2 stop-instances --instance-ids $INSTANCE_IDS
+
+          elif [[ "$ACTION" == "unknown" ]]; then
+            echo "ERROR: Schedule pehchana nahi gaya"
+            exit 1
+
+          else
+            echo "Instance already in desired state ($STATE). Koi action nahi."
           fi
+
+      - name: Wait & Verify Final State
+        run: |
+          echo "20 seconds wait kar rahe hain..."
+          sleep 20
+          FINAL_STATE=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_IDS \
+            --query "Reservations[0].Instances[0].State.Name" \
+            --output text)
+          echo "Final state: $FINAL_STATE"
