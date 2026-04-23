@@ -2,7 +2,7 @@ name: EC2 Scheduler Debug
 
 on:
   schedule:
-    - cron: '*/2 * * * *'   # हर 2 मिनट में run (testing के लिए)
+    - cron: '*/2 * * * *'   
   workflow_dispatch:
 
 permissions:
