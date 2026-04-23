@@ -2,8 +2,8 @@ name: EC2 Scheduler Test
 
 on:
   schedule:
-    - cron: '20 10 * * *'   # 15:15 IST (STOP)
-    - cron: '20 20 * * *'   # 15:30 IST (START)
+    - cron: '20 10 * * *'   # 15:50 IST (STOP)
+    - cron: '35 10 * * *'   # 16:05 IST (START)
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Decide action
         run: |
-          if [[ "${{ github.event.schedule }}" == "45 9 * * *" ]]; then
+          if [[ "${{ github.event.schedule }}" == "20 10 * * *" ]]; then
             echo "ACTION=stop" >> $GITHUB_ENV
           else
             echo "ACTION=start" >> $GITHUB_ENV
