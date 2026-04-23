@@ -1,0 +1,31 @@
+name: EC2 Scheduler
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * 1-5'
+    - cron: '30 15 * * 1-5'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  INSTANCE_IDS: i-066da3db8d10f1f49
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  scheduler:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Start instances
+        run: |
+          echo "Starting instance"
+          aws ec2 start-instances --instance-ids $INSTANCE_IDS
