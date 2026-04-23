@@ -2,8 +2,8 @@ name: EC2 Scheduler Stable
 
 on:
   schedule:
-    - cron: '15 11 * * *'   # 4:45 PM IST → START
-    - cron: '30 11 * * *'   # 5:00 PM IST → STOP
+    - cron: '36 11 * * *'   # 5:03 PM IST → START
+    - cron: '40 11 * * *'   # 5:06 PM IST → STOP
   workflow_dispatch:
     inputs:
       action:
@@ -44,9 +44,9 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "ACTION=${{ github.event.inputs.action }}" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "15 11 * * *" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "33 11 * * *" ]]; then
             echo "ACTION=start" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "30 11 * * *" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "36 11 * * *" ]]; then
             echo "ACTION=stop" >> $GITHUB_ENV
           else
             echo "ACTION=unknown" >> $GITHUB_ENV
