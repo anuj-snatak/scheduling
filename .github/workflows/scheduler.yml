@@ -2,8 +2,8 @@ name: EC2 Scheduler Stable
 
 on:
   schedule:
-    - cron: '15 11 * * *'   # 4:45 PM IST → START (test)
-    - cron: '10 11 * * *'   # 4:40 PM IST → STOP (test)
+    - cron: '15 11 * * *'
+    - cron: '30 11 * * *'
   workflow_dispatch:
     inputs:
       action:
@@ -44,13 +44,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "ACTION=${{ github.event.inputs.action }}" >> $GITHUB_ENV
-
           elif [[ "${{ github.event.schedule }}" == "15 11 * * *" ]]; then
             echo "ACTION=start" >> $GITHUB_ENV
-
-          elif [[ "${{ github.event.schedule }}" == "10 11 * * *" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "30 11 * * *" ]]; then
             echo "ACTION=stop" >> $GITHUB_ENV
-
           else
             echo "ACTION=unknown" >> $GITHUB_ENV
           fi
@@ -68,29 +65,20 @@ jobs:
         run: |
           echo "Intended Action : $ACTION"
           echo "Current State   : $STATE"
-
           if [[ "$ACTION" == "start" && "$STATE" != "running" ]]; then
             echo "Starting instance..."
             aws ec2 start-instances --instance-ids $INSTANCE_IDS
-
           elif [[ "$ACTION" == "stop" && "$STATE" != "stopped" ]]; then
             echo "Stopping instance..."
             aws ec2 stop-instances --instance-ids $INSTANCE_IDS
-
           elif [[ "$ACTION" == "unknown" ]]; then
             echo "ERROR: Schedule pehchana nahi gaya"
             exit 1
-
           else
             echo "Instance already in desired state ($STATE). Koi action nahi."
           fi
 
-      - name: Wait & Verify Final State
+      - name: Wait and Verify Final State
         run: |
           echo "20 seconds wait kar rahe hain..."
           sleep 20
-          FINAL_STATE=$(aws ec2 describe-instances \
-            --instance-ids $INSTANCE_IDS \
-            --query "Reservations[0].Instances[0].State.Name" \
-            --output text)
-          echo "Final state: $FINAL_STATE"
